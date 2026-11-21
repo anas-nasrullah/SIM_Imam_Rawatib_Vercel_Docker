@@ -1,0 +1,15 @@
+:{$PORT:80} {
+    root * /app
+    encode gzip zstd
+    header {
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "same-origin"
+        X-Frame-Options "DENY"
+    }
+    # config.php dan sumber internal tidak dapat diakses publik.
+    @private path /config.php /lib/* /partials/* /database/* /README.md /README-VERCEL.md /Caddyfile /Dockerfile /.htaccess /.env* /.git/* /.dockerignore /composer.json /composer.lock
+    route {
+        respond @private 404
+        php_server
+    }
+}

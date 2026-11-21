@@ -1,0 +1,16 @@
+<?php
+require __DIR__.'/config.php';manager_only();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+ verify_post();$id=(int)post('id');$action=post('action');
+ try{
+ if($action==='save'){$name=post('name');$phone=post('phone');$email=post('email');if(mb_strlen($name)<3)throw new RuntimeException('Nama imam minimal 3 karakter.');if($email!==''&&!filter_var($email,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Format email tidak benar.');
+ if($id){$q=db()->prepare('UPDATE imams SET name=?,phone=?,email=? WHERE id=?');$q->execute([$name,$phone,$email?:null,$id]);}else{$q=db()->prepare('INSERT INTO imams (name,phone,email) VALUES (?,?,?)');$q->execute([$name,$phone,$email?:null]);}notice('Data imam berhasil disimpan.');audit('simpan_imam',$name);
+ }elseif($action==='toggle'){$q=db()->prepare('UPDATE imams SET active=IF(active=1,0,1) WHERE id=?');$q->execute([$id]);notice('Status imam diperbarui.');}
+ else throw new RuntimeException('Aksi tidak dikenali.');
+ }catch(RuntimeException $e){notice($e->getMessage(),'danger');}catch(PDOException $e){notice('Tidak dapat menyimpan data imam.','danger');}go('imam.php');
+}
+$imams=all_imams();$id=(int)queryv('edit','0');$edit=null;if($id){$q=db()->prepare('SELECT * FROM imams WHERE id=?');$q->execute([$id]);$edit=$q->fetch();}
+$pageTitle='Data imam';$active='imam';require __DIR__.'/partials/admin_header.php';
+?>
+<div class="page-head"><div><div class="section-eyebrow">PENGURUS MASJID</div><h1>Data imam</h1><p>Daftar imam rawatib yang menerima jadwal dan bisyaroh.</p></div><a href="#form-imam" class="btn primary">+ Tambah imam</a></div><div class="card"><div class="table-scroll"><table class="data-table"><thead><tr><th>Nama imam</th><th>Nomor HP</th><th>Email</th><th>Status</th><th>Aksi</th></tr></thead><tbody><?php foreach($imams as $r):?><tr><td><b><?=h($r['name'])?></b></td><td><?=h($r['phone']?:'–')?></td><td><?=h($r['email']?:'–')?></td><td><?=pill($r['active']?'Aktif':'Nonaktif',$r['active']?'good':'bad')?></td><td><div class="action-row"><a class="btn small outline" href="<?=h(link_to('imam.php',['edit'=>$r['id']]))?>#form-imam">Edit</a><form method="post" data-confirm="Ubah status imam ini?"><?=csrf_input()?><input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<?=h($r['id'])?>"><button class="btn small light"><?=$r['active']?'Nonaktifkan':'Aktifkan'?></button></form></div></td></tr><?php endforeach;?></tbody></table></div></div><section class="card" id="form-imam"><h2><?= $edit?'Edit imam':'Tambah imam' ?></h2><form method="post" class="form-grid mt16"><?=csrf_input()?><input type="hidden" name="action" value="save"><input type="hidden" name="id" value="<?=h($edit['id']??0)?>"><label>Nama lengkap<input required minlength="3" maxlength="120" name="name" value="<?=h($edit['name']??'')?>"></label><label>Nomor HP (opsional)<input maxlength="30" name="phone" value="<?=h($edit['phone']??'')?>"></label><label class="full">Email (opsional)<input type="email" maxlength="190" name="email" value="<?=h($edit['email']??'')?>"></label><div class="admin-form-actions"><button class="btn primary">Simpan imam</button><?php if($edit):?><a class="btn outline" href="<?=h(link_to('imam.php'))?>#form-imam">Batal</a><?php endif;?></div></form></section>
+<?php require __DIR__.'/partials/admin_footer.php'; ?>
